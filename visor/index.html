@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mapa Procedures-Tablas</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1c2330;--mut:#6b7587;--card:#fff;--line:#d9dde5;--ins:#1b9e5a;--upd:#e08a00;--del:#d6372f;--rd:#9aa3b2;--proc:#2f6fdd;--tab:#7b4fd1}
+@media(prefers-color-scheme:dark){:root{--bg:#14171d;--fg:#e6e9ef;--mut:#8b94a6;--card:#1d222b;--line:#2c3340;--rd:#667086}}
+*{box-sizing:border-box}body{margin:0;font:13px system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;height:100vh}
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:8px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+header h1{font-size:15px;margin:0}label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+.leg i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin:0 4px 0 10px}
+main{flex:1;display:flex;min-height:0}#wrap{flex:1;overflow:auto;position:relative}
+#side{width:340px;border-left:1px solid var(--line);background:var(--card);overflow:auto;padding:12px}
+#side h2{font-size:14px;margin:0 0 6px;word-break:break-all}#side h3{font-size:12px;margin:12px 0 4px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+#side code{display:block;background:var(--bg);padding:4px 6px;border-radius:4px;margin:3px 0;word-break:break-all;font-size:11px}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:0 7px;margin:1px;font-size:11px}
+text{font-size:11px;fill:var(--fg);cursor:pointer}.node rect{stroke:var(--line);rx:5}.node.p rect{fill:var(--proc);opacity:.14}.node.t rect{fill:var(--tab);opacity:.14}
+.node:hover rect,.node.sel rect{opacity:.38}.dim{opacity:.12}.edge{fill:none;stroke-width:1.5;opacity:.7}.edge.hl{opacity:1;stroke-width:2.6}
+.cnt{fill:var(--mut);font-size:10px}.col{font-weight:600;fill:var(--mut);font-size:11px}
+select,button{font:inherit;padding:2px 6px}
+.tabs button{border:1px solid var(--line);background:var(--bg);color:var(--fg);padding:4px 14px;cursor:pointer}.tabs button.on{background:var(--proc);color:#fff;border-color:var(--proc)}
+#flujo{flex:1;overflow:auto;cursor:grab;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px}#flujo .head{display:flex;flex-direction:column;align-items:center}
+.person{text-align:center;color:var(--fg)}.person small{display:block;color:var(--mut);max-width:420px}
+.arrow{width:2px;height:26px;background:var(--mut);margin:0 auto;position:relative}.arrow:after{content:"";position:absolute;bottom:-1px;left:-5px;border:6px solid transparent;border-top:8px solid var(--mut);border-bottom:0}
+.gap{text-align:center;color:var(--mut);font-size:11px;margin:-2px 0}
+.step{max-width:1100px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.step .t{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.step .n{background:var(--proc);color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.step .hora{color:var(--mut);font-size:11px}.step .what{flex:1;min-width:200px;border-bottom:1px dashed var(--line);padding:1px 4px;outline:none}.step .what:empty:before{content:attr(data-ph);color:var(--mut)}
+.lanes{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}.lane{flex:1;min-width:300px}.lane .ses{font-size:10px;color:var(--mut);margin-bottom:3px}
+.chip{display:block;width:100%;text-align:left;border:1px solid var(--line);border-left:4px solid var(--rd);background:var(--bg);color:var(--fg);border-radius:6px;padding:5px 8px;margin:4px 0;cursor:pointer;font:inherit}
+.chip.w{border-left-color:var(--ins)}.chip:hover{outline:2px solid var(--proc)}.chip b{font-weight:600}
+.chip .bd{float:right;font-size:11px;color:var(--mut)}.det{margin:0 0 6px 10px;padding:6px 10px;border-left:2px solid var(--line);font-size:12px}
+.pill{display:inline-block;border-radius:10px;padding:1px 8px;margin:2px;color:#fff;font-size:11px;cursor:pointer}.pill.INSERT{background:var(--ins)}.pill.UPDATE{background:var(--upd)}.pill.DELETE{background:var(--del)}.pill.R{background:var(--rd)}
+.cols{display:block;margin:2px 0 6px 6px;color:var(--mut);font-size:11px;word-break:break-word}.sub{margin:4px 0;font-weight:600;color:var(--mut);font-size:11px;text-transform:uppercase}
+.sql{display:block;background:var(--bg);padding:3px 6px;border-radius:4px;margin:3px 0;font:11px ui-monospace,Consolas,monospace;word-break:break-all;color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <h1>ERP · Procedures y Tablas</h1>
+  <span class="tabs"><button id="tF" class="on">Flujo</button><button id="tM">Mapa de todos los casos</button></span>
+  <span id="selF"><select id="caso"></select> <label><input type="checkbox" id="soloW"> solo los que escriben</label></span>
+  <span id="casos"></span>
+  <label><input type="checkbox" id="lect"> mostrar lecturas</label>
+  <label><input type="checkbox" id="calls" checked> llamadas SP→SP</label>
+  <label>buscar <input id="q" size="14" placeholder="nombre..."></label>
+  <span class="leg"><i style="background:var(--ins)"></i>INSERT<i style="background:var(--upd)"></i>UPDATE<i style="background:var(--del)"></i>DELETE<i style="background:var(--rd)"></i>lectura<i style="background:var(--proc)"></i>llama a</span>
+  <span id="gen" style="color:var(--mut);margin-left:auto"></span>
+</header>
+<main><div id="flujo"></div><div id="wrap" style="display:none"><svg id="svg"></svg></div><aside id="side" style="display:none"><p style="color:var(--mut)">Haz clic en un procedure o una tabla.<br><br>El grosor de la línea = en cuántos casos aparece.</p></aside></main>
+<script src="datos.js"></script>
+<script>
+const D = window.DATOS, C = Object.keys(D.casos), COLOR = {INSERT:'var(--ins)',UPDATE:'var(--upd)',DELETE:'var(--del)',R:'var(--rd)',CALL:'var(--proc)'};
+const sel = new Set(C); let pick = null;
+const $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
+$('gen').textContent = 'datos: ' + D.generado + ' · ' + C.length + ' casos';
+$('casos').innerHTML = C.map(c => `<label><input type="checkbox" data-c="${c}" checked>${c.replace('caso_','c')}</label>`).join(' ');
+document.querySelectorAll('[data-c]').forEach(e => e.onchange = () => { e.checked ? sel.add(e.dataset.c) : sel.delete(e.dataset.c); draw(); });
+['lect','calls','q'].forEach(i => $(i).oninput = draw);
+
+function build() {
+  const E = new Map(), calls = new Map(); // key -> Set(casos)
+  const add = (m, k, c) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(c); };
+  for (const c of sel) {
+    const d = D.casos[c];
+    d.edges.forEach(([p, t, o]) => add(E, p + '\u0001' + t + '\u0001' + o, c));
+    if ($('lect').checked) d.redges.forEach(([p, t, o]) => add(E, p + '\u0001' + t + '\u0001' + o, c));
+    if ($('calls').checked) d.calls.forEach(([a, b]) => add(calls, a + '\u0001' + b, c));
+  }
+  return { E, calls };
+}
+
+function draw() {
+  const { E, calls } = build(), q = $('q').value.trim().toLowerCase();
+  const P = new Map(), T = new Map(), ed = [];
+  E.forEach((cs, k) => { const [p, t, o] = k.split('\u0001'); ed.push({ p, t, o, n: cs.size });
+    P.set(p, (P.get(p) || new Set())); cs.forEach(c => P.get(p).add(c)); T.set(t, (T.get(t) || new Set())); cs.forEach(c => T.get(t).add(c)); });
+  const cl = [];
+  calls.forEach((cs, k) => { const [a, b] = k.split('\u0001'); if (P.has(a) && P.has(b)) cl.push({ a, b, n: cs.size }); });
+  const mat = n => !q || n.toLowerCase().includes(q);
+  const pl = [...P.keys()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  const tl = [...T.keys()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  const RH = 24, top = 36, W1 = 270, XP = 20, XT = 780, h = top + Math.max(pl.length, tl.length) * RH + 20, w = XT + W1 + 30;
+  const svg = $('svg'); svg.setAttribute('width', w); svg.setAttribute('height', h); svg.innerHTML = '';
+  const yp = new Map(pl.map((n, i) => [n, top + i * RH + RH / 2])), yt = new Map(tl.map((n, i) => [n, top + i * RH + RH / 2]));
+  const g = (tag, a, par) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); (par || svg).appendChild(e); return e; };
+  g('text', { x: XP, y: 20, class: 'col' }).textContent = 'PROCEDURES (' + pl.length + ')';
+  g('text', { x: XT, y: 20, class: 'col' }).textContent = 'TABLAS (' + tl.length + ')';
+  const gl = g('g', {}); const gn = g('g', {});
+  const paths = [];
+  const mk = (x1, y1, x2, y2, col, n, cls, meta) => { const dx = Math.max(60, Math.abs(x2 - x1) / 2); const e = g('path', { d: `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`, class: 'edge ' + (cls || ''), stroke: col, 'stroke-width': 1 + n * 0.9 }, gl); e._m = meta; paths.push(e); };
+  ed.forEach(e => mk(XP + W1, yp.get(e.p), XT, yt.get(e.t), COLOR[e.o], e.n, '', { p: e.p, t: e.t }));
+  cl.forEach(e => { const a = yp.get(e.a), b = yp.get(e.b); const e2 = g('path', { d: `M${XP + W1},${a} C${XP + W1 + 70},${a} ${XP + W1 + 70},${b} ${XP + W1},${b}`, class: 'edge', stroke: COLOR.CALL, 'stroke-dasharray': '4 3', 'stroke-width': 1 + e.n * 0.6 }, gl); e2._m = { p: e.a, t: e.b }; paths.push(e2); });
+  const nodes = [];
+  const node = (n, x, y, cls, cs) => { const gg = g('g', { class: 'node ' + cls, transform: `translate(${x},${y - 10})` }, gn);
+    g('rect', { width: W1, height: 20 }, gg); const t = g('text', { x: 6, y: 14 }, gg); t.textContent = n.length > 38 ? n.slice(0, 37) + '…' : n;
+    const c = g('text', { x: W1 - 6, y: 14, class: 'cnt', 'text-anchor': 'end' }, gg); c.textContent = cs.size + '/' + sel.size;
+    g('title', {}, gg).textContent = n; gg.onclick = () => click(n, cls); gg._n = n; nodes.push(gg); return gg; };
+  pl.forEach(n => node(n, XP, yp.get(n), 'p', P.get(n))); tl.forEach(n => node(n, XT, yt.get(n), 't', T.get(n)));
+  function focus() {
+    const f = pick; nodes.forEach(x => x.classList.toggle('sel', x._n === f));
+    const rel = new Set(f ? [f] : []);
+    paths.forEach(p => { const on = !f || p._m.p === f || p._m.t === f; if (on && f) { rel.add(p._m.p); rel.add(p._m.t); } p.classList.toggle('hl', !!f && on); p.classList.toggle('dim', !!f && !on); });
+    nodes.forEach(x => { const m = mat(x._n) && (!f || rel.has(x._n)); x.classList.toggle('dim', !m); });
+  }
+  function click(n, cls) { pick = pick === n ? null : n; focus(); panel(pick, cls); }
+  focus();
+}
+
+function panel(n, cls) {
+  const s = $('side'); if (!n) { s.innerHTML = '<p style="color:var(--mut)">Haz clic en un procedure o una tabla.</p>'; return; }
+  const cs = [...sel]; let h = `<h2>${n}</h2>`;
+  const isP = cs.some(c => D.casos[c].edges.concat(D.casos[c].redges).some(e => e[0] === n)) || cs.some(c => D.casos[c].calls.some(x => x[0] === n || x[1] === n));
+  const isT = cs.some(c => D.casos[c].edges.concat(D.casos[c].redges).some(e => e[1] === n));
+  if (isP && !isT) {
+    const en = cs.filter(c => D.casos[c].edges.concat(D.casos[c].redges).some(e => e[0] === n) || D.casos[c].calls.some(x => x[0] === n || x[1] === n));
+    h += `<h3>Casos (${en.length}/${cs.length})</h3>` + en.map(c => `<span class="tag">${c}</span>`).join('');
+    h += '<h3>Escribe</h3>'; const w = {}; en.forEach(c => D.casos[c].edges.filter(e => e[0] === n).forEach(e => { (w[e[1]] = w[e[1]] || new Set()).add(e[2]); }));
+    h += Object.keys(w).sort().map(t => `<span class="tag">${t} [${[...w[t]].join('/')}]</span>`).join('') || '<span style="color:var(--mut)">solo lectura</span>';
+    h += '<h3>Llama a / llamado por</h3>'; const cl = new Set(); en.forEach(c => D.casos[c].calls.forEach(x => { if (x[0] === n) cl.add('→ ' + x[1]); if (x[1] === n) cl.add('← ' + x[0]); }));
+    h += [...cl].map(x => `<span class="tag">${x}</span>`).join('') || '—';
+    h += '<h3>EXEC observados</h3>'; en.forEach(c => (D.casos[c].ex[n] || []).forEach(x => h += `<code>${c.replace('caso_', 'c')}: ${x.replace(/</g, '&lt;')}</code>`));
+  } else {
+    const en = cs.filter(c => D.casos[c].edges.concat(D.casos[c].redges).some(e => e[1] === n));
+    h += `<h3>Casos (${en.length}/${cs.length})</h3>` + en.map(c => `<span class="tag">${c}</span>`).join('');
+    h += '<h3>Procedures que la usan</h3>'; const pr = {}; en.forEach(c => D.casos[c].edges.concat(D.casos[c].redges).filter(e => e[1] === n).forEach(e => (pr[e[0]] = pr[e[0]] || new Set()).add(e[2] === 'R' ? 'lee' : e[2])));
+    h += Object.keys(pr).sort().map(p => `<span class="tag">${p} [${[...pr[p]].join('/')}]</span>`).join('');
+    const cc = {}; en.forEach(c => (D.casos[c].cols[n] || []).forEach(x => (cc[x.toLowerCase()] = cc[x.toLowerCase()] || { n: x, c: new Set() }).c.add(c)));
+    const ks = Object.values(cc).sort((a, b) => b.c.size - a.c.size || a.n.localeCompare(b.n));
+    if (ks.length) h += `<h3>Columnas escritas (${ks.length}) — casos</h3>` + ks.map(k => `<span class="tag" style="opacity:${0.45 + 0.55 * k.c.size / en.length}">${k.n} · ${k.c.size}</span>`).join('');
+    const tg = new Set(); en.forEach(c => D.casos[c].trig[n] && tg.add(D.casos[c].trig[n])); if (tg.size) h += '<h3>Triggers</h3>' + [...tg].map(x => `<code>${x}</code>`).join('');
+  }
+  s.innerHTML = h;
+}
+// ---------------- Vista FLUJO (mapa 2D) ----------------
+const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const GAP = 4, LW = 250, NH = 34;
+$('caso').innerHTML = C.map(c => `<option>${c}</option>`).join('');
+let OPEN = new Set();
+function tab(f) {
+  $('tF').classList.toggle('on', f); $('tM').classList.toggle('on', !f);
+  $('flujo').style.display = f ? 'block' : 'none'; $('wrap').style.display = f ? 'none' : 'block'; $('side').style.display = f ? 'none' : 'block';
+  $('selF').style.display = f ? '' : 'none';
+  document.querySelectorAll('header > label, header > .leg, header > #casos').forEach(e => e.style.display = f ? 'none' : '');
+  f ? flujo() : draw();
+}
+$('tF').onclick = () => tab(true); $('tM').onclick = () => tab(false); $('caso').onchange = () => { OPEN = new Set(); flujo(); }; $('soloW').onchange = flujo;
+const sec = h => { const [a, b, c] = h.split(':').map(Number); return a * 3600 + b * 60 + c; };
+const wrap = (t, n) => { const o = []; let l = ''; String(t).split(' ').forEach(w => { if ((l + ' ' + w).trim().length > n) { o.push(l); l = w; } else l = (l + ' ' + w).trim(); }); if (l) o.push(l); return o; };
+// arrastrar el fondo para desplazar el mapa
+(() => { const f = $('flujo'); let d = null;
+  f.onmousedown = e => { if (e.target.closest('.nd')) return; d = [e.clientX, e.clientY, f.scrollLeft, f.scrollTop]; f.style.cursor = 'grabbing'; };
+  window.onmouseup = () => { d = null; f.style.cursor = 'grab'; };
+  window.onmousemove = e => { if (d) { f.scrollLeft = d[2] - (e.clientX - d[0]); f.scrollTop = d[3] - (e.clientY - d[1]); } }; })();
+
+function flujo() {
+  const cid = $('caso').value, d = D.casos[cid], soloW = $('soloW').checked, root = $('flujo');
+  const W = {}, R = {}, K = {};
+  d.edges.forEach(([p, t, o]) => { W[p] = W[p] || {}; (W[p][t] = W[p][t] || new Set()).add(o); });
+  d.redges.forEach(([p, t]) => (R[p] = R[p] || new Set()).add(t));
+  d.calls.forEach(([a, b]) => (K[a] = K[a] || new Set()).add(b));
+  const writes = p => Object.keys(W[p] || {});
+  const isWE = e => e.p === '(aplicacion)' || writes(e.p).length > 0 || (K[e.p] && [...K[e.p]].some(c => writes(c).length));
+  const ev = d.flujo.map(x => ({ h: x[0], s: x[1], p: x[2], sql: x[3], n: x[4], ap: x[5], t: sec(x[0]) })).sort((a, b) => a.t - b.t);
+  // pasos: los del video (flujo.json) o, si no hay, agrupados por tiempo
+  let pasos;
+  if (d.pasos) {
+    pasos = d.pasos.map(p => ({ h: p.h, t: sec(p.h), pant: p.pantalla, txt: p.texto, ev: [] }));
+    ev.forEach(e => { let k = 0; pasos.forEach((p, i) => { if (p.t <= e.t) k = i; }); pasos[k].ev.push(e); });
+  } else {
+    pasos = [];
+    ev.forEach(e => { const l = pasos[pasos.length - 1];
+      if (!l || e.t - l.last > GAP) pasos.push({ h: e.h, t: e.t, last: e.t, pant: '(sin video analizado)', txt: isWE(e) ? 'Guarda / registra datos' : 'Consulta datos', ev: [e] });
+      else { l.ev.push(e); l.last = e.t; } });
+  }
+  const NS2 = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS2, 'svg'), arrows = [];
+  const mk = (tag, a, par) => { const e = document.createElementNS(NS2, tag); for (const k in a) e.setAttribute(k, a[k]); (par || svg).appendChild(e); return e; };
+  const txt = (par, x, y, t, st) => { const e = mk('text', Object.assign({ x, y }, st || {}), par); e.textContent = t; return e; };
+  const line = (x1, y1, x2, y2, col) => mk('path', { d: `M${x1},${y1} L${x2},${y2}`, stroke: col || 'var(--mut)', 'stroke-width': 1.8, fill: 'none', 'marker-end': 'url(#ah)' });
+  const defs = mk('defs', {}); const mkr = mk('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs); mk('path', { d: 'M0,0L10,5L0,10z', fill: 'var(--mut)' }, mkr);
+  const CARD_Y = 70, CARD_H = 104, TOP = 205; let x = 170, maxY = 0, prev = null;
+  const pg = mk('g', { transform: 'translate(40,46)', stroke: 'var(--fg)', 'stroke-width': 3, fill: 'none', 'stroke-linecap': 'round' });
+  mk('circle', { cx: 32, cy: 14, r: 11, fill: 'var(--card)' }, pg); mk('path', { d: 'M32 25v30M32 34L12 48M32 34l20 14M32 55L16 80M32 55l16 25' }, pg);
+  txt(svg, 72, 150, 'Usuario', { 'text-anchor': 'middle', style: 'font-weight:700;font-size:13px' }); txt(svg, 72, 166, 'inicia el flujo', { 'text-anchor': 'middle', style: 'font-size:11px;fill:var(--mut)' });
+
+  function detalle(e, lx, y, key, depth, seen) {
+    const top0 = y - 6; let last = y;
+    const tick = yy => { arrows.push(() => mk('path', { d: `M${lx - 12},${yy} L${lx},${yy}`, stroke: 'var(--mut)', 'stroke-width': 1.3, fill: 'none' })); last = yy; };
+    const put = (t, ops, cl) => {
+      const col = ops === 'R' ? 'var(--rd)' : ops.includes('DELETE') ? 'var(--del)' : (ops.includes('UPDATE') && !ops.includes('INSERT')) ? 'var(--upd)' : 'var(--ins)', ck = key + '|' + t, w = LW - 22 - depth * 10;
+      const g2 = mk('g', { class: 'nd', style: cl ? 'cursor:pointer' : '' }); mk('rect', { x: lx, y, width: w, height: 24, rx: 12, fill: col }, g2);
+      txt(g2, lx + 10, y + 16, (ops === 'R' ? 'lee · ' : ops + ' · ') + t, { style: 'font-size:10.5px;fill:#fff;font-weight:600' }); mk('title', {}, g2).textContent = t; tick(y + 12);
+      if (cl) g2.onclick = () => { OPEN.has(ck) ? OPEN.delete(ck) : OPEN.add(ck); flujo(); };
+      y += 28;
+      if (cl && OPEN.has(ck)) { const cs = d.cols[t] || []; wrap(cs.length ? 'columnas que escribe este caso (' + cs.length + '): ' + cs.join(', ') : 'sin columnas detectadas', 42).forEach(l => { txt(svg, lx + 8, y + 10, l, { style: 'font-size:10px;fill:var(--mut)' }); y += 12; }); y += 4; }
+    };
+    if (e.p === '(aplicacion)') { const m = /^(\w+) (.*)/.exec(e.ap) || []; (m[2] || '').split(', ').filter(Boolean).forEach(t => put(t, m[1], true)); }
+    else {
+      Object.entries(W[e.p] || {}).forEach(([t, o]) => put(t, [...o].join('/'), true));
+      const rs = [...(R[e.p] || [])]; rs.slice(0, 8).forEach(t => put(t, 'R', false));
+      if (rs.length > 8) { txt(svg, lx, y + 10, '+ ' + (rs.length - 8) + ' tablas leídas más', { style: 'font-size:10px;fill:var(--mut)' }); y += 14; }
+      const kids = [...(K[e.p] || [])].filter(k => !seen.has(k)); seen.add(e.p);
+      kids.forEach(k => {
+        mk('rect', { x: lx, y, width: LW - 22, height: 22, rx: 6, fill: 'none', stroke: 'var(--proc)', 'stroke-dasharray': '4 3' });
+        txt(svg, lx + 8, y + 15, '↳ llama a ' + (k.length > 26 ? k.slice(0, 25) + '…' : k), { style: 'font-size:10.5px;fill:var(--proc);font-weight:600' }); tick(y + 11); y += 26;
+        y = detalle({ p: k, sql: '' }, lx + 14, y, key + '>' + k, depth + 1, seen);
+      });
+      if (!Object.keys(W[e.p] || {}).length && !rs.length && !kids.length) { txt(svg, lx, y + 10, 'sin tablas detectadas en el trace', { style: 'font-size:10px;fill:var(--mut)' }); y += 14; }
+    }
+    arrows.push(() => mk('path', { d: `M${lx - 12},${top0} L${lx - 12},${last}`, stroke: 'var(--mut)', 'stroke-width': 1.3, fill: 'none' }));
+    return y;
+  }
+
+  pasos.forEach((p, i) => {
+    const evs = soloW ? p.ev.filter(isWE) : p.ev;
+    const lanesK = []; evs.forEach(e => { if (!lanesK.includes(e.s)) lanesK.push(e.s); });
+    const nl = Math.max(1, lanesK.length), colW = Math.max(280, nl * (LW + 12) + 12);
+    const cg = mk('g', {}); mk('rect', { x, y: CARD_Y, width: colW - 24, height: CARD_H, rx: 12, fill: 'var(--card)', stroke: 'var(--proc)', 'stroke-width': 2 }, cg);
+    mk('circle', { cx: x + 16, cy: CARD_Y + 16, r: 11, fill: 'var(--proc)' }, cg);
+    txt(cg, x + 16, CARD_Y + 20, i + 1, { 'text-anchor': 'middle', style: 'fill:#fff;font-weight:700;font-size:12px' });
+    txt(cg, x + 34, CARD_Y + 20, p.pant + ' · ' + p.h, { style: 'font-size:10.5px;fill:var(--mut)' });
+    wrap(p.txt, Math.floor((colW - 50) / 6.6)).slice(0, 4).forEach((l, k) => txt(cg, x + 12, CARD_Y + 46 + k * 16, l, { style: 'font-size:12.5px;font-weight:600' }));
+    const x0 = x, xp = prev ? prev.x + prev.w : 112; arrows.push(() => line(xp, CARD_Y + CARD_H / 2, x0, CARD_Y + CARD_H / 2));
+    prev = { x, w: colW - 24 };
+    lanesK.forEach((sn, li) => {
+      const lx = x + li * (LW + 12); let y = TOP, first = true;
+      if (nl > 1) txt(svg, lx, TOP - 8, 'sesión SQL ' + sn + ' · en paralelo', { style: 'font-size:10px;fill:var(--mut)' });
+      evs.filter(e => e.s === sn).forEach((e, j) => {
+        const key = `${cid}|${i}|${sn}|${j}`, isW = e.p === '(aplicacion)' || writes(e.p).length > 0, name = e.p === '(aplicacion)' ? 'SQL de la aplicación' : e.p;
+        const g1 = mk('g', { class: 'nd', style: 'cursor:pointer' }); mk('rect', { x: lx, y, width: LW, height: NH, rx: 7, fill: 'var(--card)', stroke: isW ? 'var(--ins)' : 'var(--rd)', 'stroke-width': isW ? 2.4 : 1.4 }, g1);
+        txt(g1, lx + 8, y + 15, name.length > 34 ? name.slice(0, 33) + '…' : name, { style: 'font-size:11.5px;font-weight:600' });
+        txt(g1, lx + 8, y + 28, (isW ? '✎ escribe ' + (e.p === '(aplicacion)' ? 1 : writes(e.p).length) : (R[e.p] || new Set()).size + ' lecturas') + (e.n > 1 ? ' · ×' + e.n : '') + ' · ' + e.h, { style: 'font-size:10px;fill:var(--mut)' });
+        mk('title', {}, g1).textContent = e.sql; g1.onclick = () => { OPEN.has(key) ? OPEN.delete(key) : OPEN.add(key); flujo(); };
+        if (first) { const yy = y; arrows.push(() => line(lx + LW / 2, CARD_Y + CARD_H, lx + LW / 2, yy, 'var(--proc)')); first = false; }
+        y += NH;
+        if (OPEN.has(key)) y = detalle(e, lx + 22, y + 6, key, 0, new Set()) + 4;
+        y += 10;
+      });
+      maxY = Math.max(maxY, y);
+    });
+    x += colW;
+  });
+  arrows.forEach(f => f());
+  svg.setAttribute('width', x + 60); svg.setAttribute('height', Math.max(maxY, TOP) + 60); svg.style.display = 'block';
+  const sl = root.scrollLeft, st = root.scrollTop; root.innerHTML = ''; root.appendChild(svg); root.scrollLeft = sl; root.scrollTop = st;
+}
+
+tab(true);
+if (location.hash === '#demo') { $('caso').value = 'caso_002'; OPEN.add('caso_002|4|349|0'); OPEN.add('caso_002|12|349|1'); OPEN.add('caso_002|12|349|1|Tx_OrdComp'); flujo(); $('flujo').scrollLeft = 3300; }
+</script>
+</body>
+</html>
