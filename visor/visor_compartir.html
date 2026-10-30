@@ -139,7 +139,7 @@ function panel(n, cls) {
 // ---------------- Vista FLUJO (mapa 2D) ----------------
 const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const GAP = 4, LW = 250, NH = 34;
-$('caso').innerHTML = C.map(c => `<option>${c}</option>`).join('');
+$('caso').innerHTML = '<option value="*">★ Todo junto (flujo continuo)</option>' + C.map(c => `<option>${c}</option>`).join('');
 let OPEN = new Set();
 function tab(f) {
   $('tF').classList.toggle('on', f); $('tM').classList.toggle('on', !f);
@@ -158,31 +158,43 @@ const wrap = (t, n) => { const o = []; let l = ''; String(t).split(' ').forEach(
   window.onmousemove = e => { if (d) { f.scrollLeft = d[2] - (e.clientX - d[0]); f.scrollTop = d[3] - (e.clientY - d[1]); } }; })();
 
 function flujo() {
-  const cid = $('caso').value, d = D.casos[cid], soloW = $('soloW').checked, root = $('flujo');
-  const W = {}, R = {}, K = {};
-  d.edges.forEach(([p, t, o]) => { W[p] = W[p] || {}; (W[p][t] = W[p][t] || new Set()).add(o); });
-  d.redges.forEach(([p, t]) => (R[p] = R[p] || new Set()).add(t));
-  d.calls.forEach(([a, b]) => (K[a] = K[a] || new Set()).add(b));
+  const root = $('flujo'), v = $('caso').value, sl = root.scrollLeft, st = root.scrollTop;
+  const svg = flujoCasos(v === '*' ? C : [v]);
+  root.innerHTML = ''; root.appendChild(svg); root.scrollLeft = sl; root.scrollTop = st;
+}
+
+function flujoCasos(ids) {
+  const soloW = $('soloW').checked, CX = {};
+  ids.forEach(c => { const d = D.casos[c], W = {}, R = {}, K = {};
+    d.edges.forEach(([p, t, o]) => { W[p] = W[p] || {}; (W[p][t] = W[p][t] || new Set()).add(o); });
+    d.redges.forEach(([p, t]) => (R[p] = R[p] || new Set()).add(t));
+    d.calls.forEach(([a, b]) => (K[a] = K[a] || new Set()).add(b));
+    CX[c] = { d, W, R, K }; });
+  let cid, d, W, R, K; // contexto del caso al que pertenece el paso que se esta dibujando
+  const use = c => { cid = c; ({ d, W, R, K } = CX[c]); };
   const writes = p => Object.keys(W[p] || {});
   const isWE = e => e.p === '(aplicacion)' || writes(e.p).length > 0 || (K[e.p] && [...K[e.p]].some(c => writes(c).length));
-  const ev = d.flujo.map(x => ({ h: x[0], s: x[1], p: x[2], sql: x[3], n: x[4], ap: x[5], t: sec(x[0]) })).sort((a, b) => a.t - b.t);
-  // pasos: los del video (flujo.json) o, si no hay, agrupados por tiempo
-  let pasos;
-  if (d.pasos) {
-    pasos = d.pasos.map(p => ({ h: p.h, t: sec(p.h), pant: p.pantalla, txt: p.texto, ev: [] }));
-    ev.forEach(e => { let k = 0; pasos.forEach((p, i) => { if (p.t <= e.t) k = i; }); pasos[k].ev.push(e); });
-  } else {
-    pasos = [];
-    ev.forEach(e => { const l = pasos[pasos.length - 1];
-      if (!l || e.t - l.last > GAP) pasos.push({ h: e.h, t: e.t, last: e.t, pant: '(sin video analizado)', txt: isWE(e) ? 'Guarda / registra datos' : 'Consulta datos', ev: [e] });
-      else { l.ev.push(e); l.last = e.t; } });
-  }
+  const pasos = [];
+  ids.forEach(c => { use(c);
+    const ev = d.flujo.map(x => ({ h: x[0], s: x[1], p: x[2], sql: x[3], n: x[4], ap: x[5], t: sec(x[0]) })).sort((a, b) => a.t - b.t);
+    // pasos: los del video (flujo.json) o, si no hay, agrupados por tiempo
+    const ps = [];
+    if (d.pasos) {
+      d.pasos.forEach(p => ps.push({ cid: c, h: p.h, t: sec(p.h), pant: p.pantalla, txt: p.texto, ev: [] }));
+      ev.forEach(e => { let k = 0; ps.forEach((p, i) => { if (p.t <= e.t) k = i; }); ps[k].ev.push(e); });
+    } else {
+      ev.forEach(e => { const l = ps[ps.length - 1];
+        if (!l || e.t - l.last > GAP) ps.push({ cid: c, h: e.h, t: e.t, last: e.t, pant: '(sin video analizado)', txt: isWE(e) ? 'Guarda / registra datos' : 'Consulta datos', ev: [e] });
+        else { l.ev.push(e); l.last = e.t; } });
+    }
+    ps.forEach(p => pasos.push(p));
+  });
   const NS2 = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS2, 'svg'), arrows = [];
   const mk = (tag, a, par) => { const e = document.createElementNS(NS2, tag); for (const k in a) e.setAttribute(k, a[k]); (par || svg).appendChild(e); return e; };
   const txt = (par, x, y, t, st) => { const e = mk('text', Object.assign({ x, y }, st || {}), par); e.textContent = t; return e; };
   const line = (x1, y1, x2, y2, col) => mk('path', { d: `M${x1},${y1} L${x2},${y2}`, stroke: col || 'var(--mut)', 'stroke-width': 1.8, fill: 'none', 'marker-end': 'url(#ah)' });
   const defs = mk('defs', {}); const mkr = mk('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs); mk('path', { d: 'M0,0L10,5L0,10z', fill: 'var(--mut)' }, mkr);
-  const CARD_Y = 70, CARD_H = 104, TOP = 205; let x = 170, maxY = 0, prev = null;
+  const CARD_H = 116, X0 = 170;
   const pg = mk('g', { transform: 'translate(40,46)', stroke: 'var(--fg)', 'stroke-width': 3, fill: 'none', 'stroke-linecap': 'round' });
   mk('circle', { cx: 32, cy: 14, r: 11, fill: 'var(--card)' }, pg); mk('path', { d: 'M32 25v30M32 34L12 48M32 34l20 14M32 55L16 80M32 55l16 25' }, pg);
   txt(svg, 72, 150, 'Usuario', { 'text-anchor': 'middle', style: 'font-weight:700;font-size:13px' }); txt(svg, 72, 166, 'inicia el flujo', { 'text-anchor': 'middle', style: 'font-size:11px;fill:var(--mut)' });
@@ -215,38 +227,57 @@ function flujo() {
     return y;
   }
 
-  pasos.forEach((p, i) => {
-    const evs = soloW ? p.ev.filter(isWE) : p.ev;
-    const lanesK = []; evs.forEach(e => { if (!lanesK.includes(e.s)) lanesK.push(e.s); });
-    const nl = Math.max(1, lanesK.length), colW = Math.max(280, nl * (LW + 12) + 12);
-    const cg = mk('g', {}); mk('rect', { x, y: CARD_Y, width: colW - 24, height: CARD_H, rx: 12, fill: 'var(--card)', stroke: 'var(--proc)', 'stroke-width': 2 }, cg);
-    mk('circle', { cx: x + 16, cy: CARD_Y + 16, r: 11, fill: 'var(--proc)' }, cg);
-    txt(cg, x + 16, CARD_Y + 20, i + 1, { 'text-anchor': 'middle', style: 'fill:#fff;font-weight:700;font-size:12px' });
-    txt(cg, x + 34, CARD_Y + 20, p.pant + ' · ' + p.h, { style: 'font-size:10.5px;fill:var(--mut)' });
-    wrap(p.txt, Math.floor((colW - 50) / 6.6)).slice(0, 4).forEach((l, k) => txt(cg, x + 12, CARD_Y + 46 + k * 16, l, { style: 'font-size:12.5px;font-weight:600' }));
-    const x0 = x, xp = prev ? prev.x + prev.w : 112; arrows.push(() => line(xp, CARD_Y + CARD_H / 2, x0, CARD_Y + CARD_H / 2));
-    prev = { x, w: colW - 24 };
-    lanesK.forEach((sn, li) => {
-      const lx = x + li * (LW + 12); let y = TOP, first = true;
-      if (nl > 1) txt(svg, lx, TOP - 8, 'sesión SQL ' + sn + ' · en paralelo', { style: 'font-size:10px;fill:var(--mut)' });
-      evs.filter(e => e.s === sn).forEach((e, j) => {
-        const key = `${cid}|${i}|${sn}|${j}`, isW = e.p === '(aplicacion)' || writes(e.p).length > 0, name = e.p === '(aplicacion)' ? 'SQL de la aplicación' : e.p;
-        const g1 = mk('g', { class: 'nd', style: 'cursor:pointer' }); mk('rect', { x: lx, y, width: LW, height: NH, rx: 7, fill: 'var(--card)', stroke: isW ? 'var(--ins)' : 'var(--rd)', 'stroke-width': isW ? 2.4 : 1.4 }, g1);
-        txt(g1, lx + 8, y + 15, name.length > 34 ? name.slice(0, 33) + '…' : name, { style: 'font-size:11.5px;font-weight:600' });
-        txt(g1, lx + 8, y + 28, (isW ? '✎ escribe ' + (e.p === '(aplicacion)' ? 1 : writes(e.p).length) : (R[e.p] || new Set()).size + ' lecturas') + (e.n > 1 ? ' · ×' + e.n : '') + ' · ' + e.h, { style: 'font-size:10px;fill:var(--mut)' });
-        mk('title', {}, g1).textContent = e.sql; g1.onclick = () => { OPEN.has(key) ? OPEN.delete(key) : OPEN.add(key); flujo(); };
-        if (first) { const yy = y; arrows.push(() => line(lx + LW / 2, CARD_Y + CARD_H, lx + LW / 2, yy, 'var(--proc)')); first = false; }
-        y += NH;
-        if (OPEN.has(key)) y = detalle(e, lx + 22, y + 6, key, 0, new Set()) + 4;
-        y += 10;
+  // 1) medir cada paso y repartirlos en filas (serpiente: la fila 1 va a la derecha, la 2 a la izquierda, ...)
+  const info = pasos.map(p => { use(p.cid);
+    const evs = soloW ? p.ev.filter(isWE) : p.ev, lanesK = []; evs.forEach(e => { if (!lanesK.includes(e.s)) lanesK.push(e.s); });
+    return { evs, lanesK, nl: Math.max(1, lanesK.length), colW: Math.max(280, Math.max(1, lanesK.length) * (LW + 12) + 12) }; });
+  const maxW = Math.max(900, ($('flujo').clientWidth || 1500) - X0 - 70), rows = [];
+  info.forEach((n, i) => { let r = rows[rows.length - 1]; if (!r || (r.w + n.colW > maxW && r.idx.length)) rows.push(r = { idx: [], w: 0 }); n.cum = r.w; r.idx.push(i); r.w += n.colW; });
+  const rowW = Math.max(...rows.map(r => r.w), 0);
+  // 2) dibujar fila por fila
+  let cardY = 70, prev = null, bottom = 0;
+  rows.forEach((r, ri) => {
+    const rev = ri % 2 === 1, TOPY = cardY + 135; let rowMax = TOPY;
+    r.idx.forEach(i => {
+      const p = pasos[i], n = info[i], evs = n.evs, lanesK = n.lanesK, nl = n.nl, colW = n.colW, cY = cardY; use(p.cid);
+      const x = rev ? X0 + rowW - n.cum - colW : X0 + n.cum, cmid = cY + CARD_H / 2;
+      const cg = mk('g', {}); mk('rect', { x, y: cY, width: colW - 24, height: CARD_H, rx: 12, fill: 'var(--card)', stroke: 'var(--proc)', 'stroke-width': 2 }, cg);
+      mk('circle', { cx: x + 16, cy: cY + 16, r: 11, fill: 'var(--proc)' }, cg);
+      txt(cg, x + 16, cY + 20, i + 1, { 'text-anchor': 'middle', style: 'fill:#fff;font-weight:700;font-size:12px' });
+      const maxT = Math.floor((colW - 24 - 34 - 110) / 7.6);
+      txt(cg, x + 34, cY + 20, p.pant.length > maxT ? p.pant.slice(0, maxT - 1) + '…' : p.pant, { style: 'font-size:13.5px;font-weight:700' });
+      mk('title', {}, cg).textContent = p.pant;
+      txt(cg, x + colW - 24 - 10, cY + 20, 'Caso ' + parseInt(p.cid.replace('caso_', ''), 10) + ' · ' + p.h, { 'text-anchor': 'end', style: 'font-size:10.5px;fill:var(--mut)' });
+      mk('path', { d: `M${x + 12},${cY + 32} L${x + colW - 36},${cY + 32}`, stroke: 'var(--line)', 'stroke-width': 1 }, cg);
+      wrap(p.txt, Math.floor((colW - 50) / 5.8)).slice(0, 4).forEach((l, k) => txt(cg, x + 12, cY + 50 + k * 15, l, { style: 'font-size:11px;fill:var(--fg)' }));
+      const right = x + colW - 24;
+      if (!prev) arrows.push(() => line(112, cmid, x, cmid));
+      else if (prev.ri === ri) { const pv = prev; arrows.push(() => rev ? line(pv.x, pv.cmid, right, cmid) : line(pv.x + pv.w, pv.cmid, x, cmid)); }
+      else { const pv = prev, from = pv.rev ? pv.x : pv.x + pv.w, gx = pv.rev ? X0 - 22 : X0 + rowW + 10, to = rev ? right : x;
+        arrows.push(() => mk('path', { d: `M${from},${pv.cmid} L${gx},${pv.cmid} L${gx},${cmid} L${to},${cmid}`, stroke: 'var(--mut)', 'stroke-width': 1.8, fill: 'none', 'marker-end': 'url(#ah)' })); }
+      prev = { x, w: colW - 24, cmid, ri, rev };
+      lanesK.forEach((sn, li) => {
+        const lx = x + li * (LW + 12); let y = TOPY, first = true;
+        if (nl > 1) txt(svg, lx, TOPY - 8, 'sesión SQL ' + sn + ' · en paralelo', { style: 'font-size:10px;fill:var(--mut)' });
+        evs.filter(e => e.s === sn).forEach((e, j) => {
+          const key = `${cid}|${i}|${sn}|${j}`, isW = e.p === '(aplicacion)' || writes(e.p).length > 0, name = e.p === '(aplicacion)' ? 'SQL de la aplicación' : e.p;
+          const g1 = mk('g', { class: 'nd', style: 'cursor:pointer' }); mk('rect', { x: lx, y, width: LW, height: NH, rx: 7, fill: 'var(--card)', stroke: isW ? 'var(--ins)' : 'var(--rd)', 'stroke-width': isW ? 2.4 : 1.4 }, g1);
+          txt(g1, lx + 8, y + 15, name.length > 34 ? name.slice(0, 33) + '…' : name, { style: 'font-size:11.5px;font-weight:600' });
+          txt(g1, lx + 8, y + 28, (isW ? '✎ escribe ' + (e.p === '(aplicacion)' ? 1 : writes(e.p).length) : (R[e.p] || new Set()).size + ' lecturas') + (e.n > 1 ? ' · ×' + e.n : '') + ' · ' + e.h, { style: 'font-size:10px;fill:var(--mut)' });
+          mk('title', {}, g1).textContent = e.sql; g1.onclick = () => { OPEN.has(key) ? OPEN.delete(key) : OPEN.add(key); flujo(); };
+          if (first) { const yy = y; arrows.push(() => line(lx + LW / 2, cY + CARD_H, lx + LW / 2, yy, 'var(--proc)')); first = false; }
+          y += NH;
+          if (OPEN.has(key)) y = detalle(e, lx + 22, y + 6, key, 0, new Set()) + 4;
+          y += 10;
+        });
+        rowMax = Math.max(rowMax, y);
       });
-      maxY = Math.max(maxY, y);
     });
-    x += colW;
+    bottom = rowMax; cardY = rowMax + 45;
   });
   arrows.forEach(f => f());
-  svg.setAttribute('width', x + 60); svg.setAttribute('height', Math.max(maxY, TOP) + 60); svg.style.display = 'block';
-  const sl = root.scrollLeft, st = root.scrollTop; root.innerHTML = ''; root.appendChild(svg); root.scrollLeft = sl; root.scrollTop = st;
+  svg.setAttribute('width', X0 + rowW + 60); svg.setAttribute('height', bottom + 60); svg.style.display = 'block';
+  return svg;
 }
 
 tab(true);
